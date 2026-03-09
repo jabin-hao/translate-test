@@ -10,6 +10,23 @@ from app.config import MODELS_DIR
 class OpusMTTranslator:
     """封装单个 Opus-MT CTranslate2 模型"""
 
+    @staticmethod
+    def remove_spanish_accents_and_punct(text: str) -> str:
+        """
+        去除西班牙语重音符号和所有标点符号、特殊字符
+        """
+        import string
+        accents = str.maketrans(
+            "áéíóúüñÁÉÍÓÚÜÑ",
+            "aeiouunAEIOUUN"
+        )
+        # 先去重音
+        text = text.translate(accents)
+        # 去除所有标点和特殊字符，包括西班牙语常见标点
+        extra_punct = '¡¿·«»“”‘’…—–·\u2026\u2014\u2013'  # 包含西文引号、省略号、破折号等
+        all_punct = string.punctuation + '¡¿' + extra_punct + '。，“”‘’；：？！、·'  # 加入中文标点
+        return text.translate(str.maketrans('', '', all_punct))
+
     def __init__(self, model_dir: str):
         self.model_dir = model_dir
         self.translator = ctranslate2.Translator(
@@ -27,7 +44,9 @@ class OpusMTTranslator:
         results = self.translator.translate_batch(
             tokenized, max_decoding_length=256, beam_size=4
         )
-        return [self.sp_target.decode(r.hypotheses[0]) for r in results]
+        decoded = [self.sp_target.decode(r.hypotheses[0]) for r in results]
+        # 去除重音符号和标点
+        return [self.remove_spanish_accents_and_punct(t) for t in decoded]
 
 
 # ---------- 全局模型实例 ----------
